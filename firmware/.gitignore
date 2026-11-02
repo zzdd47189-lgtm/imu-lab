@@ -1,0 +1,10 @@
+mx.scratch
+!.settings
+build/
+*.o
+*.obj
+*.elf
+*.hex
+*.bin
+*.map
+*.su

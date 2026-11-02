@@ -1,3 +1,8 @@
 build/
 /imu
 /imu_data.csv
+*.exe
+*.o
+*.obj
+/simulator/imu
+/simulator/imu_data.csv
