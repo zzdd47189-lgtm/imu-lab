@@ -6,3 +6,5 @@ build/
 *.obj
 /simulator/imu
 /simulator/imu_data.csv
+/pc/imu_data.csv
+/pc/alarm_events.csv
