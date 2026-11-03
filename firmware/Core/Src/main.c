@@ -138,6 +138,17 @@ float pitch_gyro = 0.0f;
 
 float roll_fused = 0.0f;
 float pitch_fused = 0.0f;
+//设置零点，设备可能一开始工作地方就有角度
+float roll_sum = 0.0f;
+float pitch_sum = 0.0f;       // 累加采集到的角度
+
+float roll_zero = 0.0f;
+float pitch_zero = 0.0f;      // 最后算出的零点
+
+uint16_t calibration_count = 0; // 已经收集了多少次
+int calibration_done = 0;      // 0：未完成，1：已完成
+
+uint32_t calibration_start = HAL_GetTick();
 uint32_t previous_time = HAL_GetTick();
   while (1)
 {
@@ -201,11 +212,36 @@ uint32_t previous_time = HAL_GetTick();
     pitch_fused = 0.98f * (pitch_fused + gy * dt)
                   + 0.02f * pitch_acc;
 
+if (!calibration_done)
+{
+    // 前 3 秒继续更新滤波，但不收集零点数据
+    if (current_time - calibration_start >= 3000)
+    {
+        roll_sum += roll_fused;
+        pitch_sum += pitch_fused;
+        calibration_count++;
+
+        if (calibration_count >= 100)
+        {
+            roll_zero = roll_sum / calibration_count;
+            pitch_zero = pitch_sum / calibration_count;
+
+            calibration_done = 1;
+        }
+    }
+
+    // 标定期间不进入后面的报警和数据发送
+    HAL_Delay(10);
+    continue;
+}
+float roll_corrected = roll_fused - roll_zero;
+float pitch_corrected = pitch_fused - pitch_zero;
+
     // 连续超限 2 秒才报警
-    int tilt_over = (roll_fused > 20.0f ||
-                     roll_fused < -20.0f ||
-                     pitch_fused > 20.0f ||
-                     pitch_fused < -20.0f);
+    int tilt_over = (roll_corrected > 20.0f ||
+                     roll_corrected < -20.0f ||
+                     pitch_corrected > 20.0f ||
+                     pitch_corrected < -20.0f);
 
     if (tilt_over)
     {
@@ -235,8 +271,8 @@ uint32_t previous_time = HAL_GetTick();
         int len = snprintf(msg, sizeof(msg),
                            "%lu,%d,%d,%d\r\n",
                            (unsigned long)current_time,
-                           (int)roll_fused,
-                           (int)pitch_fused,
+                           (int)roll_corrected,
+                           (int)pitch_corrected,
                            alarm);
 
         if (len > 0 && len < (int)sizeof(msg))
